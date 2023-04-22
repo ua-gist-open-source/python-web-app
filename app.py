@@ -22,7 +22,7 @@ def search():
 
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT osm_id, name, type, st_asgeojson(geometry) FROM import.osm_places WHERE upper(name) LIKE upper(%s);', [place])
+    cur.execute('SELECT osm_id, name, type, st_asgeojson(st_transform(geometry, 4326)) FROM import.osm_places WHERE upper(name) LIKE upper(%s);', [place])
     places = cur.fetchall()
     cur.close()
     conn.close()
