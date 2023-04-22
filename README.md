@@ -12,6 +12,8 @@ The objective of this assignment is to build a web application that allows a use
 - PostGIS (geospatial database)
 - Leaflet (javascript library)
 
+You will start by adding a simple serarch feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
+
 ## Background
 ### Python Flask
 Flask is a web application framework written in python. It provides an easy and organized way to build dynamic websites. Read the Flask tutorial at https://flask.palletsprojects.com/en/2.2.x/tutorial/ to get a feel for how it works. In this assignment the basic structure of a working Flask application is provided for you so all you need to do is expand in a few places to turn it into a geospatial processing application.
