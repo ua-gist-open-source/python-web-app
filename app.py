@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 app = Flask(__name__, static_url_path='/static')
 
 @app.route("/")
@@ -7,7 +7,8 @@ def hello():
 
 @app.route("/search")
 def search():
-    return ("<html><body>Search results</body></html>")
+    place = request.args.get('place')
+    return ("<html><body>Search results for {place}</body></html>".format(place=place))
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
