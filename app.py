@@ -29,15 +29,5 @@ def search():
     return render_template('results.html', places=places)
 
 
-@app.route('/searcg')
-def index():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM places WHERE ;')
-    books = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template('index.html', books=books)
-
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
