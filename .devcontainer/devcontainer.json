@@ -1,0 +1,40 @@
+{
+	"name": "Docker in Docker",
+	"dockerFile": "Dockerfile",
+	"runArgs": ["--init", "--privileged"],
+	"mounts": ["source=dind-var-lib-docker,target=/var/lib/docker,type=volume"],
+	// "waitFor": "onCreateCommand",
+	// "updateContentCommand": "pip install -r requirements.txt",
+	"overrideCommand": false,
+	// "postAttachCommand": {
+	//   "server": "flask --debug run"
+	// },
+
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"ckolkman.vscode-postgres",
+				"ms-python.python"
+			]
+		}
+	},
+	
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [ 80 ],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "docker --version",
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	"remoteEnv": {
+		"PGPASSWORD": "postgres",
+		"PGUSER": "postgres",
+		"PGHOST": "localhost",
+		"PGPORT": "5432"
+	}
+}
