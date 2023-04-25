@@ -9,7 +9,11 @@ The objective of this assignment is to build a web application that allows a use
 You will start by adding a simple serarch feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
 
 ## Housekeeping
-There should be a database running in this codespace with the OSM database imported by `imposm`. To check, look at your Docker containers to ensure that the `kartoza/postgis` container is running.
+There should be a database running in this codespace with the OSM database imported by `imposm`. To check, look at your Docker containers to ensure that the `kartoza/postgis` container is running. If not, run the following:
+```
+docker compose up -d
+./populate_database.sh
+```
 
 ## Background
 ### Python Flask
@@ -38,9 +42,6 @@ Add the following `route` to your `app.py`:
 @app.route("/search")
 def search():
     place = request.args.get('term')
-    
-    # This adds a `%` to the end of the `place` parameter, allowing us to search for places that start with our search term.
-    place = "{}{}".format(place,'%')
     
     # Get a Database connection to the OSM database
     conn = get_db_connection()
@@ -102,6 +103,12 @@ If you read the comments around the `search()` function above you'll see that th
       - `sql = 'select concat(col1, \' - \', col2')` would concatenate columns `col1` and `col2` with the string `" - "` in between them.
   - column 2 will be the `osm_id` for the matching record. This will be used in a separate query to request additional information about the row for rendering on the map (e.g., the geometry).
 
+If you need a hint for how to add the `%` wildcard to your search term:
+```
+    # This adds a `%` to the end of the `place` parameter, changing, e.g. "Hono" to "Hono%".
+    place = "{}{}".format(place,'%')
+```    
+If you want to ignore case, cast both terms to upper case using the postgresql `upper()` function.
 
 ### Tweak the SQL query
 
@@ -135,7 +142,7 @@ When it works the results will look like this:
 ]
 ```
 
-At this point you are ready to wire up autocompletion
+At this point you are ready to wire up autocompletion from the javascript side.
 
 #### Deliverable: `/search` screenshot
 Once your `/search` is working, take a screenshot of the output of the curl command above and name it:
@@ -163,7 +170,7 @@ Next, to setup autocomplate, add this autocomplete script to the `<head>` sectio
     } );
 </script>
 ```
-According to the [JQuery docs](https://api.jqueryui.com/autocomplete/), the url `source` will be passed a `term` parameter with the search term for autocomplete. Our next step is to create a new endpoint in our Flask app to handle this request and perform the database query needed for autocomplete to work. A route is already created to `app.py` with the bones of an autocomplete.
+According to the [JQuery docs](https://api.jqueryui.com/autocomplete/), the url `source` will be passed a `term` parameter with the search term for autocomplete. 
 
 
 When autocomplete works you should be able to type "Honol" and see the autocompletion dialog show up below the text box:
@@ -172,47 +179,43 @@ When autocomplete works you should be able to type "Honol" and see the autocompl
 
 
 #### Deliverable: `/search` result screenshot
-Once your `/search` is working, take a screenshot of the output of the index.html page with the autocomplete drop-down
-- `screencap-result.png`
+Once your autocomplete `/search` is working, take a screenshot of the output of the index.html page with the autocomplete drop-down
+- `screencap-result.png`. Use something other than the "Honolulu" search in the example above, though. 
 
 ### Make the autocomplete clickable
-We want the autocomplete results to be clickable so that when you click on a result it adds a Leaflet marker on the map and zooms to it. This will replace the JQuery function in `index.html` for autocompletion:
+The HTML page with javascript is located at [static/index.html](static/index.html). We want the autocomplete results to be clickable so that when you click on a result it adds a Leaflet marker on the map and zooms the map to it. Look for the comment `setup places search autocomplete` to find where we are going to setup the autocomplete.
+
+The way we are going to do this is to bind an action, `select` to a function we will write that will add the marker. The documentation for this action is here in the [JQuery docs](https://api.jqueryui.com/autocomplete/#event-select). Look over the following function and try to make sense of it. 
 
 ```
-  // setup places search autocomplete
-  $( function() {
-    // declare marker outside `autocomplete()` so it can easily be removed later 
-    // for example, when something else is selected.
-    var marker
+  select: function( event, ui ) {
+      event.preventDefault();
 
-    $( "#place" ).autocomplete({
-      source: "/search",
+        var lat = ui.item.lat; // this needs to be part of the `/search` response
+        var lon = ui.item.lon; // this needs to be part of the `/search` response
 
-      select: function( event, ui ) {
-          event.preventDefault();
+        // if the marker is not null it means we already have one that should be removed before we add another one
+        if (marker != null) {
+          map.removeLayer(marker)
+        }
+        marker = L.marker([lat, lon],{title: ui.item.label, icon: redIcon}).addTo(map);
+        
+        marker.bindPopup('<b>'+ui.item.label+'</b>').openPopup();
 
-            var lat = ui.item.lat; // this needs to be part of the `/search` response
-            var lon = ui.item.lon; // this needs to be part of the `/search` response
+        // Add a button to find coffee. This button should be bound with an `onclick` action that calls a
+        // javascript `findCoffee()` function that takes a longitude and latitude argument
+        $( "#search") .html('<input type="button" value="Find coffee!" onclick="findCoffee('+marker.getLatLng().lng+','+marker.getLatLng().lat+')">');
 
-            // if the marker is not null it means we already have one that should be removed before we add another one
-            if (marker != null) {
-              map.removeLayer(marker)
-            }
-            marker = L.marker([lat, lon],{title: ui.item.label, icon: redIcon}).addTo(map);
-            
-            marker.bindPopup('<b>'+ui.item.label+'</b>').openPopup();
+        map.flyTo([lat, lon], 14);
 
-            // Add a button to find coffee. This button should be bound with an `onclick` action that calls a
-            // javascript `findCoffee()` function that takes a longitude and latitude argument
-            $( "#search") .html('<input type="button" value="Find coffee!" onclick="findCoffee('+marker.getLatLng().lng+','+marker.getLatLng().lat+')">');
-
-            map.flyTo([lat, lon], 14);
-            return false;
-      }
-    });
-  } );
+        return false;
+  }
 ```
-Note that the above requires the `/search` result to return additional information beside the `label` and `name`. Specifically, it needs to return two arguments named `lon` and `lat`. You will need to modify the SQL to return two additional columns. You will want to look into the PostGIS functions [`ST_X()`](https://postgis.net/docs/ST_X.html) and [`ST_Y()`](https://postgis.net/docs/ST_Y.html). Note also that the default projection for your OSM data is `EPSG:3857` which is _not_ lat/long so you will need to use the [`ST_Transform()`](https://postgis.net/docs/ST_Transform.html) function as well. The SRID you want is `4326`.
+Note that the above requires a few things ro work:
+- the `/search` result must return additional information beside the `label` and `name`. 
+  - Specifically, it needs to return two arguments named `lon` and `lat`. You will need to modify the SQL to return two additional columns. You will want to look into the PostGIS functions [`ST_X()`](https://postgis.net/docs/ST_X.html) and [`ST_Y()`](https://postgis.net/docs/ST_Y.html). 
+- Note also that the default projection for your OSM data is `EPSG:3857` which is _not_ lat/long so you will need to use the [`ST_Transform()`](https://postgis.net/docs/ST_Transform.html) function as well. The SRID you want is `4326`.
+- This also requires a `findCoffee()` javascript function that takes two numbers for longitude and latitude. Initially, this function doesn't do anything except pop-up a dialog with the lat, long coordinates.
 
 You will find yourself starting and stopping the `flask app.py` in order to test this.
 
@@ -223,7 +226,7 @@ Once your `/search` is working, take a screenshot of the map showing the marker 
 - `screencap-marker.png`
 
 ### Create a `/find_coffee` route in Flask
-Once you can zoom to a search result we want to add a new feature that allows you to search the `amenities` table for nearby cafes. We will create a new `route` called `/find_coffee` that finds the 5 closest `amenities` records to the location provided (i.e., the geo-location of the place you find from `/search` result). 
+Once you can zoom to a search result we want to add a new API handler that allows you to search for cafes near a given latitude, longitude. The cafes are stored in a table named `amenities`. We will create a new `route` called `/find_coffee` that finds the 5 closest `amenities` records to the location provided (i.e., the geo-location of the place you find from `/search` result). 
 
 The PostGIS is based on [this k-nearest neighbors example](https://postgis.net/workshops/postgis-intro/knn.html). However, instead of using a static point with WKT we will create a new point from the search result's `lon` and `lat`:
 ```
@@ -236,7 +239,6 @@ def find_coffee():
     conn = get_db_connection()
     cur = conn.cursor()
     ewkt = "SRID=4326;POINT("+lon+" "+lat+")"
-    print(ewkt)
     sql = '''
 SELECT 
   a.geometry <-> ST_Transform(%s::geometry,3857) AS dist, 

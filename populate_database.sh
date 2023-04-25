@@ -3,12 +3,6 @@
 echo "Updating docker-compose.yml with correct volume..."
 sed -i "s#REPO_DIR#$PWD#" docker-compose.yml
 
-echo "Cloning osm-styles geoserver data_dir..."
-git clone https://github.com/geosolutions-it/osm-styles.git
-
-echo "Downloading osm-lowres.gpkg..."
-curl -L https://www.dropbox.com/s/bqzxzkpmpybeytr/osm-lowres.gpkg?dl=1 -o osm-styles/data/osm-lowres.gpkg
-
 echo "Starting docker services postgres, geoserver, nginx"
 docker compose up -d
 
@@ -39,38 +33,3 @@ echo "Importing pbf into postgresql..."
 
 echo "removing hawaii-latest.osm.pbf"
 rm hawaii-latest.osm.pbf
-
-tries=1
-until curl http://localhost:8080/geoserver/web
-do
-    "geoserver is not running yet after $tries tries. sleeping 5..."
-    sleep 5
-    tries=$(expr $tries + 1)
-    if [ $tries -gt 15 ]; then
-        echo geoserver does not seem to be running. Giving up. 
-        exit 1
-    fi
-done
-echo "geoserver is running..."
-
-echo "Fixing osm datastore..."
-# CREATE DATASTORE
-curl -v -u admin:geoserver -H 'Content-type: application/json' -XPUT http://localhost:8080/geoserver/rest/workspaces/osm/datastores/osm -d '
-{
-  "dataStore": {
-    "name": "osm",
-    "connectionParameters": {
-      "entry": [
-        {"@key":"host","$":"'postgis'"},
-        {"@key":"port","$":"'5432'"},
-        {"@key":"database","$":"'hawaii'"},
-        {"@key":"user","$":"'postgres'"},
-        {"@key":"passwd","$":"'postgres'"},
-        {"@key":"schema","$":"import"},
-        {"@key":"dbtype","$":"postgis"}
-      ]
-    }
-  }
-}'
-
-
