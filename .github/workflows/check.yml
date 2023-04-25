@@ -1,0 +1,90 @@
+name: Check for required files
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check 1 files
+        id: check_1_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-search.png"
+
+      - name: Required files exist
+        if: steps.check_1_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-search.png', is missing
+          exit 1
+
+      - name: Check 2 files
+        id: check_2_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-result.png"
+
+      - name: Required files exist
+        if: steps.check_2_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-result.png', is missing
+          exit 1
+
+      - name: Check 3 files
+        id: check_3_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-marker.png"
+
+      - name: Required files exist
+        if: steps.check_3_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-marker.png', is missing
+          exit 1
+
+      - name: Check 4 files
+        id: check_4_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-find-coffee.png"
+
+      - name: Required files exist
+        if: steps.check_4_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-find-coffee.png', is missing
+          exit 1
+
+      - name: Check 5 files
+        id: check_5_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-find-coffee-map.png"
+
+      - name: Required files exist
+        if: steps.check_5_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-find-coffee-map.png', is missing
+          exit 1
+          
+      - name: Check 6 files
+        id: check_6_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "screencap-find-coffee-dragged.png"
+
+      - name: Required files exist
+        if: steps.check_5_files.outputs.files_exists != 'true'
+        run: |
+          echo Required file, 'screencap-find-coffee-dragged.png', is missing
+          exit 1
+          
+          
+screencap-search.png
+screencap-result.png
+screencap-marker.png
+screencap-find-coffee.png
+screencap-find-coffee-map.png
+screencap-find-coffee-dragged.png

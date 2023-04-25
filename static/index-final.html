@@ -7,6 +7,11 @@
         
         <title>OSM PLace Searcher</title>
         
+      
+        <!-- <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">        
+        <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+        <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script> -->
+
         <!-- jQuery library -->
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
@@ -33,9 +38,18 @@
 
         // search for coffee shops near a point
         function findCoffee(lon, lat) {
-          // clear results from any previous coffee search first
-          clearResults()
-          // todo: get the closest 5 cafes and add markers to the map
+          $.ajax({url: "/find_coffee?lon="+lon+"&lat="+lat, success: function(result){
+            clearResults();
+            let i = 0;
+            jsonResult = JSON.parse(result)
+            while (i < jsonResult.length) {
+              marker = L.marker([jsonResult[i]["lat"], jsonResult[i]["lon"]], {title: jsonResult[i]["name"]}).addTo(map);
+              coffeeMarkers.push(marker);
+              marker.bindPopup('<i>'+jsonResult[i]["name"]+'</i>').openPopup();
+              i++;
+            }
+          }});
+          $ ( "#hide_results" ).show();
         }
 
         // remove coffee shops from map
@@ -53,7 +67,25 @@
             source: "/search",
 
             select: function( event, ui ) {
-              // todo: Add a marker to the map for this place
+                event.preventDefault();
+                  // $( "#osm_id" ).html("<table><tr><td>" +ui.item.osm_id +"</td></tr></table>");
+                  var lat = ui.item.lat;
+                  var lon = ui.item.lon;
+                  if (marker != null) {
+                    map.removeLayer(marker)
+                  }
+                  marker = L.marker([lat, lon],{title: ui.item.label, draggable: true, icon: redIcon}).addTo(map);
+                  marker.on('dragend', function(event){
+                    var marker = event.target;
+                    var position = marker.getLatLng();
+                    marker.setLatLng(new L.LatLng(position.lat, position.lng),{draggable:'true'});
+                    map.panTo(new L.LatLng(position.lat, position.lng))
+                    $( "#search") .html('<input type="button" value="Find coffee!" onclick="findCoffee('+marker.getLatLng().lng+','+marker.getLatLng().lat+')">');
+                  });
+                  marker.bindPopup('<b>'+ui.item.label+'</b>').openPopup();
+                  $( "#search") .html('<input type="button" value="Find coffee!" onclick="findCoffee('+marker.getLatLng().lng+','+marker.getLatLng().lat+')">');
+                  map.flyTo([lat, lon], 14);
+                  return false;
             }
           });
         } );
@@ -79,7 +111,6 @@
             var osm = new L.TileLayer(osmUrl, {minZoom: 3, maxZoom: 18, attribution: osmAttrib});
             map.addLayer(osm);
 
-            // print the lat/long on the map as the mouse moves
 
             let Position = L.Control.extend({ 
             _container: null,
