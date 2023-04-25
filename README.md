@@ -1,12 +1,5 @@
 [![Open in Codespaces](https://classroom.github.com/assets/launch-codespace-7f7980b617ed060a017424585567c406b6ee15c891e84e1186181d67ecf80aa0.svg)](https://classroom.github.com/open-in-codespaces?assignment_repo_id=10957574)
-# python-flask-app
-** Quick start - Initialization **
-```
-bash populate_database.sh
-python3 app.py
-```
-
-# Custom Geospatial Web Application With Flask
+# Assignment: Custom Python Flask Geospatial App
 
 The objective of this assignment is to build a web application that allows a user to browse a map and search for the closest coffee shops and gas stations. You will use the following technologies:
 - Python Flask (web application framework)
@@ -14,6 +7,9 @@ The objective of this assignment is to build a web application that allows a use
 - Leaflet (javascript library)
 
 You will start by adding a simple serarch feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
+
+## Housekeeping
+There should be a database running in this codespace with the OSM database imported by `imposm`. To check, look at your Docker containers to ensure that the `kartoza/postgis` container is running.
 
 ## Background
 ### Python Flask
