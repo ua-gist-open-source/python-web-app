@@ -27,7 +27,7 @@
 	"forwardPorts": [ 5000 ],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "docker compose up -d; sleep 10; populate_database.sh",
+	"postCreateCommand": "populate_database.sh",
 
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode",
