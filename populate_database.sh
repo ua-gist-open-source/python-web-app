@@ -3,6 +3,9 @@
 echo "Updating docker-compose.yml with correct volume..."
 sed -i "s#REPO_DIR#$PWD#" docker-compose.yml
 
+echo "Cloning osm-styles geoserver data_dir..."
+git clone https://github.com/geosolutions-it/osm-styles.git
+
 echo "Starting docker services postgres, geoserver, nginx"
 docker compose up -d
 
