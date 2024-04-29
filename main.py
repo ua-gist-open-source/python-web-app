@@ -13,21 +13,18 @@ database = Database(DATABASE_URL)
 
 engine = create_engine(DATABASE_URL)  # Access the DB Engine
 
-
 @app.get("/")
 async def read_index():
     return FileResponse('static/index.html')
+
+// Add "search" here
+
+// Add "find_coffee" here
 
 @app.on_event("startup")
 async def startup():
     await database.connect()
 
-
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
-
-    query = estimates.select().where(
-        sqlalchemy.and_(estimates.c.cell_id == cell_id, estimates.c.user_id == user_id)
-    )
-    return await database.fetch_one(query)
