@@ -30,10 +30,11 @@ RUN apt-get update \
 
 RUN apt update \
     && apt upgrade -y \
-    && apt install -y python3-pip python3-dev build-essential libssl-dev libffi-dev python3-setuptools libpq-dev
+    && apt install -y python3-pip python3-dev build-essential libssl-dev libffi-dev python3-setuptools libpq-dev cargo
     
+RUN pip3 install --upgrade pip
 RUN pip3 install wheel 
-RUN pip3 install gunicorn flask psycopg2-binary
+RUN pip3 install gunicorn flask psycopg2-binary fastapi uvicorn starlette 
 
 RUN mkdir /opt/imposm \
     && curl -L -O https://github.com/omniscale/imposm3/releases/download/v0.11.1/imposm-0.11.1-linux-x86-64.tar.gz -o imposm-0.11.1-linux-x86-64.tar.gz  \

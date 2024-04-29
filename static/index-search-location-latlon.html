@@ -18,9 +18,6 @@
         <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>      
         <script>
 
-          // Variable initialization
-          
-          // current marker
           var marker = null;
 
           // custom icon for the searched place
@@ -33,10 +30,7 @@
             shadowSize: [41, 41]
           });
           
-          // store the search markers for coffee results in a new array so we can remove them later
-          var coffeeMarkers = new Array()
-
-          // Place search autocomplete
+          // our logic goes here
           $( function() {
               $( "#place" ).autocomplete({
                 source: function( request, response ) {
@@ -81,30 +75,8 @@
                   return false;
                 }
               });
-          } );          
-
-           // search for coffee shops near a point
-           function findCoffee(lon, lat) {
-            $.ajax({url: "/find_coffee?lon="+lon+"&lat="+lat, success: function(jsonResult){
-              // clearResults();
-              let i = 0;
-              // alert(jsonResult.length)
-              while (i < jsonResult.length) {
-                marker = L.marker([jsonResult[i]["lat"], jsonResult[i]["lon"]], {title: jsonResult[i]["name"]}).addTo(map);
-                coffeeMarkers.push(marker);
-                marker.bindPopup('<i>'+jsonResult[i]["name"]+'</i>').openPopup();
-                i++;
-              }
-            }});
-            $ ( "#hide_results" ).show();
-          }
-          // remove coffee shops from map
-          function clearResults() {
-            while (coffeeMarkers.length > 0) {            
-              map.removeLayer(coffeeMarkers.pop())
-              $ ( "#hide_results" ).hide();
-            }
-          }
+          } );
+          
           </script>
     </body>
 
@@ -153,5 +125,6 @@
             let lng = Math.round(event.latlng.lng * 100000) / 100000;
             this.position.updateHTML(lat, lng);
           });
+
         </script>
 </html>

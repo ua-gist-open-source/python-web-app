@@ -1,23 +1,23 @@
 [![Open in Codespaces](https://classroom.github.com/assets/launch-codespace-7f7980b617ed060a017424585567c406b6ee15c891e84e1186181d67ecf80aa0.svg)](https://classroom.github.com/open-in-codespaces?assignment_repo_id=10957574)
-# Assignment: Custom Python Flask Geospatial App
+# Assignment: Custom Python FastAPI Geospatial App
 
 The objective of this assignment is to build a web application that allows a user to browse a map and search for the closest coffee shops and gas stations. You will use the following technologies:
-- Python Flask (web application framework)
+- Python FastAPI (web application framework)
 - PostGIS (geospatial database)
 - Leaflet (javascript library)
 
 You will start by adding a simple serarch feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
 
 ## Housekeeping
-There should be a database running in this codespace with the OSM database imported by `imposm`. To check, look at your Docker containers to ensure that the `kartoza/postgis` container is running. If not, run the following:
+To start with, we need to start up a database and import OSM data from geofabrik.de:
 ```
 docker compose up -d
 ./populate_database.sh
 ```
 
 ## Background
-### Python Flask
-Flask is a web application framework written in python. It provides an easy and organized way to build dynamic websites. Read the Flask tutorial at https://flask.palletsprojects.com/en/2.2.x/tutorial/ to get a feel for how it works. In this assignment the basic structure of a working Flask application is provided for you so all you need to do is expand in a few places to turn it into a geospatial processing application.
+### Python FastAPI
+[FastAPI](https://fastapi.tiangolo.com/) is a fast web application framework written in python. It provides an easy and organized way to build dynamic websites. Read the [FastAPI Example](https://fastapi.tiangolo.com/#example) to get a feel for how it works. In this assignment the basic structure of a working FastAPI application is provided for you so all you need to do is expand in a few places to turn it into a geospatial processing application.
 
 ### AJAX and JQuery
 In the early days of the web, webpages were generally loaded all at once and rendered one time. This was extremely limiting for interactive applications because every action required loading a whole new page. Javascript provides the interactivity needed to reload parts of the page by changing the document object model or loading content into memory. AJAX (an acronym of the poorly named "Asynchronous JavaScript And XML") allows javascript to send http requests using `XMLHttpRequest` in order to dynamically update an HTML document. There are various ways to use AJAX but the simplest is to use a an AJAX library like JQuery. 
@@ -26,89 +26,64 @@ In the early days of the web, webpages were generally loaded all at once and ren
 
 ## Assignment
 
-Initially, this repo will have a working Flask application that serves an interactive map. The page will have a search box in which you can search for place names. Initially, this search will do nothing. It is your job to wire it up to query the OSM database you populated and search for placenames. 
+Initially, this repo will have a working FastAPI application that serves an interactive map running in [static/index.html](static/index.html). The page will have a search box in which you can search for place names. Initially, this search will do nothing. It is your job to wire it up to query the OSM database you populated and search for placenames. 
 
-The first objective for the student will be to add a search feature. This search feature will allow you to enter a place name and it will serarch the PostGIS database for matching results. To accomplish this the student will have to make two things:
+The first objective for the student will be to add a search feature. This search feature will allow you to enter a place name and it will search the PostGIS database for matching results. To accomplish this the student will have to make two things:
 
 - Add a form to the index.html page
-- Create a `/search` route in the flask app that searches the database
+- Create a `/search` route in the FastAPI app that searches the database
 
-### Create a `/search` route in Flask
+### Create a `/search` route in FastAPI
 
 At first we are going to make the `/search` endpoint populate results in an HTML page named `results.json`. Then, once we can see that it's working, we will wire it up to auto-complete using AJAX. 
 
-Add the following `route` to your `app.py`:
+Add the following API endpoint to your `main.py`.
+Note that it uses the http GET interface:
 ```
-@app.route("/search")
-def search():
-    place = request.args.get('term')
-    
-    # Get a Database connection to the OSM database
-    conn = get_db_connection()
-
-    # cursor() allows python code to execute SQL in the database
-    cur = conn.cursor()
+@app.get("/search/{place}")
+async def search(place: str):
     
     # This is the actual query. You may want to work out the SQL statement in a separate `psql` or other datbase session.
     # The start SQL will give you everything matching `place` exactly which isn't quite what you need. 
     # See the instructions for guidance on how to update this for this jquery autocomplete
-    sql = '''
+    query = '''
 SELECT 
   name as label, 
   name
 FROM 
   import.osm_places 
 WHERE 
-  name = %s;
+  name = :name
 '''
-    cur.execute(sql, [place])
-
+    rows = await database.fetch_all(query=query, values={"name": place})
     # For our pursposes we want to save the results in a special json format with two keys: `label` and `value`.
     # That's because jquery `autocomplete` will work if follow this format convention for our JSON output.
-
+    
     results = []
-    for row in cur.fetchall():
+    for row in rows:
         results.append({'label': row[0], 'value': row[1]})
-    cur.close()
-    conn.close()
+    return results
+```
 
-    # This converts our list of dicts into an HTML-friendly format for our http response
-    template = jinja2.Template("""{{ matches | tojson(indent=2) }}""")
-    return template.render(matches=results)
+The way this query is written it is making an EXACT string match. For example, if you search for "Honolulu" you will get two  results. Try it on the command line:
 
 ```
-In order to use the `psycopg2` library to connect to the postgresql database, add the following to the file at line 2:
+curl localhost:8000/search?q=Honolulu
+```
+It might be hard to read but there should be two records. This would not return "East Honolulu", however. It's also case sensitive so this will return nothing:
+```
+curl localhost:8000/search?q=honolulu
+```
+What we really want is to be able to return partial matches. For example:
+- "hon" -> All the Honolulus, including East Honolulu PLUS anything with "hon" in its name, such as "Piʻihonua".
 
-```
-import psycopg2, os
-```
-This relies on a function we haven't created yet that actually creates the database connection. Add this function above the `route`s:
-```
-def get_db_connection():
-    conn = psycopg2.connect(host='localhost',
-                            database='hawaii',
-                            user=os.environ['PGUSER'],
-                            password=os.environ['PGPASSWORD'])
-    return conn
-```
-You should recognize the parameters as those same parameters you used to connect to your `hawaii` database in previous assignments.
-
-If you read the comments around the `search()` function above you'll see that the SQL is only semi-working. It is up to you to make it work with the JQuery autocomplete function. Specifically, the SQL function should do the following:
-- match any place whose name _starts with_ the search `term` variable. You will need the `LIKE` operator and the wild card, `%`.
-- matches places regardless of upper/lower case
-- returns two columns:
-  - column 1 will be used as a label which will contain the place `name` and its `type`.
-    - you will want to use the `concat` operation [ref](https://www.postgresqltutorial.com/postgresql-string-functions/postgresql-concat-function/)
-    - you may need to use an escape character (`\`) to escape single quotes. For example:
-      - `sql = 'select concat(col1, \' - \', col2')` would concatenate columns `col1` and `col2` with the string `" - "` in between them.
-  - column 2 will be the `osm_id` for the matching record. This will be used in a separate query to request additional information about the row for rendering on the map (e.g., the geometry).
 
 If you need a hint for how to add the `%` wildcard to your search term:
 ```
     # This adds a `%` to the end of the `place` parameter, changing, e.g. "Hono" to "Hono%".
     place = "{}{}".format(place,'%')
 ```    
-If you want to ignore case, cast both terms to upper case using the postgresql `upper()` function.
+If you want to ignore case, cast both terms to upper case using the postgresql `upper()` and the python `.upper()` function.
 
 ### Tweak the SQL query
 
@@ -119,15 +94,15 @@ Open your PostgreSQL Explorer and work out the correct SQL to produce the follow
 | Honolulu (city)   | 21442033   |
 | Honolulu (county) | 3962058199 |
 
-Once you get the SQL figured out, embed the SQL in your `/search` flask route (being sure to escape any single quotes). To test it out:
+Once you get the SQL figured out, embed the SQL in your `/search` FastAPI route (being sure to escape any single quotes). To test it out in a terminal window:
+```
+curl http://localhost:8000/search?q=honol
+```
+The `json` will be squished but you can make it more readable by piping it through a utility named `jq`:
+```
+curl http://localhost:8000/search?q=honol | jq '.'
+```
 
-```
-python3 app.py
-```
-and in another terminal window:
-```
-curl http://localhost:5000/search?term=honol
-```
 When it works the results will look like this:
 ```
 [
@@ -138,6 +113,10 @@ When it works the results will look like this:
   {
     "label": "Honolulu (county)",
     "value": 3962058199
+  },
+  {
+    "label": "East Honolulu",
+    "value": "East Honolulu"
   }
 ]
 ```
@@ -160,18 +139,34 @@ To enable the use of the JQuery javascript library, add the following to the `<h
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/themes/smoothness/jquery-ui.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
 ```
-Next, to setup autocomplate, add this autocomplete script to the `<head>` section:
+Next, to setup autocomplate, add this autocomplete script to the `<head>` section (replacing the section with `// our logic goes here`):
 ```
- <script>
-    $( function() {
-        $( "#place" ).autocomplete({
-          source: "/search"
-        });
-    } );
-</script>
+         <script>
+          $( function() {
+              $( "#place" ).autocomplete({
+                source: function( request, response ) {
+                  $.ajax({
+                    url: "/search",
+                    dataType: "json",
+                    data: {
+                        q: request.term
+                    },
+                    success: function( data ) {
+                      response($.map(data, function(item) {
+                        return {
+                            label : item.label,
+                            value : item.value
+                        };
+                      }));
+                    }
+                  });
+                },
+              });
+          } );
+        </script>
 ```
-According to the [JQuery docs](https://api.jqueryui.com/autocomplete/), the url `source` will be passed a `term` parameter with the search term for autocomplete. 
 
+`uvicorn` will reload the app and you can refresh the page in your browser to see changes. 
 
 When autocomplete works you should be able to type "Honol" and see the autocompletion dialog show up below the text box:
 
@@ -187,12 +182,13 @@ The HTML page with javascript is located at [static/index.html](static/index.htm
 
 The way we are going to do this is to bind an action, `select` to a function we will write that will add the marker. The documentation for this action is here in the [JQuery docs](https://api.jqueryui.com/autocomplete/#event-select). Look over the following function and try to make sense of it. 
 
+
 ```
   select: function( event, ui ) {
       event.preventDefault();
 
-        var lat = ui.item.lat; // this needs to be part of the `/search` response
-        var lon = ui.item.lon; // this needs to be part of the `/search` response
+        var lat = ui.item.lat; // todo: this needs to be part of the `/search` response
+        var lon = ui.item.lon; // todo: this needs to be part of the `/search` response
 
         // if the marker is not null it means we already have one that should be removed before we add another one
         if (marker != null) {
@@ -217,7 +213,35 @@ Note that the above requires a few things ro work:
 - Note also that the default projection for your OSM data is `EPSG:3857` which is _not_ lat/long so you will need to use the [`ST_Transform()`](https://postgis.net/docs/ST_Transform.html) function as well. The SRID you want is `4326`.
 - This also requires a `findCoffee()` javascript function that takes two numbers for longitude and latitude. Initially, this function doesn't do anything except pop-up a dialog with the lat, long coordinates.
 
-You will find yourself starting and stopping the `flask app.py` in order to test this.
+I suggest you use your postgresql query browser to work out the syntax for the SQL query. 
+
+Additionally, as you tweak the files, VS Code will auto save them and reload the app. You can quickly test with your `curl` command:
+```
+curl http://localhost:8000/search?q=honolulu | jq '.'
+```
+And when it works you will get results with lat and long:
+```
+[
+  {
+    "label": "Honolulu",
+    "value": "Honolulu",
+    "lon": -157.85567608140175,
+    "lat": 21.304546949388495
+  },
+  {
+    "label": "Honolulu",
+    "value": "Honolulu",
+    "lon": -157.96051105896382,
+    "lat": 21.46815097049943
+  },
+  {
+    "label": "East Honolulu",
+    "value": "East Honolulu",
+    "lon": -157.71739152666413,
+    "lat": 21.289130869252727
+  }
+]
+```
 
 When you do get the clickable autocomplete working you should be able to click on a result and have the map fly to a new red marker for that location. 
 
@@ -225,23 +249,16 @@ When you do get the clickable autocomplete working you should be able to click o
 Once your `/search` is working, take a screenshot of the map showing the marker placed when you clicked the search result:
 - `screencap-marker.png`
 
-### Create a `/find_coffee` route in Flask
-Once you can zoom to a search result we want to add a new API handler that allows you to search for cafes near a given latitude, longitude. The cafes are stored in a table named `amenities`. We will create a new `route` called `/find_coffee` that finds the 5 closest `amenities` records to the location provided (i.e., the geo-location of the place you find from `/search` result). 
+### Create a `/find_coffee` route in your web app
+Once you can zoom to a search result we want to add a new API endpoint that allows you to search for cafes near a given latitude, longitude. The cafes are stored in a table named `amenities`. We will create a new route called `/find_coffee` that finds the 5 closest `amenities` records to the location provided (i.e., the geo-location of the place you find from `/search` result). 
 
 The PostGIS is based on [this k-nearest neighbors example](https://postgis.net/workshops/postgis-intro/knn.html). However, instead of using a static point with WKT we will create a new point from the search result's `lon` and `lat`:
 ```
-
-@app.route("/find_coffee")
-def find_coffee():
-    lon = request.args.get('lon')
-    lat = request.args.get('lat')
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-    ewkt = "SRID=4326;POINT("+lon+" "+lat+")"
-    sql = '''
+@app.post("/find_coffee")
+async def find_coffee(lon: str, lat: str):
+    query = '''
 SELECT 
-  a.geometry <-> ST_Transform(%s::geometry,3857) AS dist, 
+  a.geometry <-> ST_Transform(ST_Point({},{},4326),3857) AS dist, 
   osm_id, 
   name,
   ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,
@@ -253,23 +270,52 @@ WHERE
 ORDER BY
   dist
 LIMIT 5;
-'''
-    cur.execute(sql, [ewkt])
+'''.format(lon, lat)
+    print(query)
+    
+    rows = await database.fetch_all(query=query)
 
     results = []
-    for row in cur.fetchall():
+    for row in rows:
         results.append({'dist': row[0], 'osm_id': row[1], 'name': row[2], 'lat': row[3], 'lon': row[4]})
-    cur.close()
-    conn.close()
-    template = jinja2.Template("""{{ matches | tojson(indent=2) }}""")
-    return template.render(matches=results)
+    # template = jinja2.Template("""{{ matches | tojson(indent=2) }}""")
+    # return template.render(matches=results)
+    return results
 ```
-The query for `lat` and `lon` are a little complicated so let's break it down here:
+This query has two interesting geo parts. There's the `a.geometry <-> ST_Transform(ST_Point({},{},4326),3857) AS dist` and the `ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,` and `... AS lon` parts.
+
+`<->` gives a distance so we are calculating the distance from the amenity (`a.geometry`) to much more complicated `ST_Transform(ST_Point({},{},4326),3857)`. This is a nest of functions so let's deconstruct from the center out:
+```
+ST_Point({},{},4326)
+```
+[`ST_Point`](https://postgis.net/docs/ST_Point.html) simple creates a PostGIS Point geometry from an `x` and `y` value. `4326` is the SRID this geometry will be given. 
+```
+ST_Transform(ST_Point({},{},4326),3857)
+```
+In order to compare the `amenties.geometry` field (which is in EPSG:3857, we need to reproject one of them with [ST_Transform](https://postgis.net/docs/ST_Transform.html) PostGIS function. Since distance is better at the equator as a geometry in EPSG:3857, we will project the point to 3857 )
+
+The additional geometry parts are for extracting latitude and longitude values for the coffee shops so that we can display them in the map:
+
 ```
   ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,
+  ST_X(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lon,
 ```
+Center out: 
+```
+ST_Centroid(a.geometry)
+```
+Since the amenities are polygons, we need an interior point to get a single lat/long value so we use [ST_Centroid](https://postgis.net/docs/ST_Centroid.html).
+```
+ST_Transform(ST_Centroid(a.geometry), 4326)
+```
+As above, [ST_Transform](https://postgis.net/docs/ST_Transform.html) reprojects them from their native EPSG:3857 to EPSG:4326 (lat/long). Finally, [`ST_X`](https://postgis.net/docs/ST_X.html) and [`ST_Y`](https://postgis.net/docs/ST_Y.html) simply return the x and y values from a point. 
 
-The function to return the Y-coordinate (latitude) is `ST_X`. But we want the coordinate in WGS84, which is SRID `4326` so we need to call `ST_Transform()` on the geometry or else the units will be in meters. However, this fails for some records because the `amenities` tables contains multipoints, lines, multilines, polygons, and multi-polygons and `ST_X()` will not return a single value for those cases. So we will take the centroid to ensure that there is just one `x` and `y` coordinate for each input geometry. 
+
+To test it out, enter this in your terminal:
+
+```
+curl -XPOST http://localhost:8000/find_coffee?lat=21.4&lon=-157.7 | jq '.'
+```
 
 That route ensures that calls to `http://localhost:5000/find_coffee?lon=-157.9&lat=21.3` (or similar) will return a response like this:
 ```
@@ -315,7 +361,7 @@ That route ensures that calls to `http://localhost:5000/find_coffee?lon=-157.9&l
 #### Deliverable: `/find_coffee` curl screenshot
 Once your `/find_coffee` is working, take a screenshot of the curl command showing the output of 
 ```
-curl http://localhost:5000/find_coffee?lon=-157.9&lat=21.3
+curl http://localhost:5000/find_coffee?lon=-157.9&lat=21.3 | jq '.'
 ```
 Name it: 
 - `screencap-find-coffee.png`
