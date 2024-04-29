@@ -43,8 +43,6 @@ RUN mkdir /opt/imposm \
 
 RUN git clone https://github.com/geosolutions-it/osm-styles.git
 
-RUN pip install -r requirements.txt
-
 VOLUME [ "/var/lib/docker" ]
 
 # Setting the ENTRYPOINT to docker-init.sh will start up the Docker Engine 
