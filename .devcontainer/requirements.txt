@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+databases
+psycopg2-binary
+asyncpg
+# starlette
+# jinja2
+# aiofiles
+# titiler.core
