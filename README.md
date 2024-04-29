@@ -6,7 +6,7 @@ The objective of this assignment is to build a web application that allows a use
 - PostGIS (geospatial database)
 - Leaflet (javascript library)
 
-You will start by adding a simple serarch feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
+You will start by adding a simple search feature that fetches places from your `osm` database and prints them on a new page. You will then adapt the page to returning geospatial results asynchronously, build an auto-complete feature, and finally provide routing recommendations as part of a real-time dynamic geospatial application
 
 ## Housekeeping
 To start with, we need to start up a database and import OSM data from geofabrik.de:
@@ -28,22 +28,25 @@ In the early days of the web, webpages were generally loaded all at once and ren
 
 Initially, this repo will have a working FastAPI application that serves an interactive map running in [static/index.html](static/index.html). The page will have a search box in which you can search for place names. Initially, this search will do nothing. It is your job to wire it up to query the OSM database you populated and search for placenames. 
 
-The first objective for the student will be to add a search feature. This search feature will allow you to enter a place name and it will search the PostGIS database for matching results. To accomplish this the student will have to make two things:
+Take a look at your own map website as it exists now. In a terminal window, type the following:
+```
+uvicorn main:app --reload
+```
+Then navigate to your codespace port 8000 to see the webpage. You'll see you can drag the map around and zoom in and out. There is a search input but it does not do anything.
 
-- Add a form to the index.html page
-- Create a `/search` route in the FastAPI app that searches the database
+The first objective for you will be to add a search feature. This search feature will allow you to enter a place name and it will search the PostGIS database for matching results. To accomplish this the student will have to make two things:
+
+- in `main.py` create a `/search` endpoint that searches the database
+- in `static/index.html` make the search input activate an autocomplete that populates a list of matching places.
 
 ### Create a `/search` route in FastAPI
-
-At first we are going to make the `/search` endpoint populate results in an HTML page named `results.json`. Then, once we can see that it's working, we will wire it up to auto-complete using AJAX. 
 
 Add the following API endpoint to your `main.py`.
 Note that it uses the http GET interface:
 ```
-@app.get("/search/{place}")
-async def search(place: str):
-    
-    # This is the actual query. You may want to work out the SQL statement in a separate `psql` or other datbase session.
+@app.get("/search")
+async def search(q: str):
+    # This is the actual query. You may want to work out the SQL statement in a separate `psql` or other database session.
     # The start SQL will give you everything matching `place` exactly which isn't quite what you need. 
     # See the instructions for guidance on how to update this for this jquery autocomplete
     query = '''
@@ -55,7 +58,7 @@ FROM
 WHERE 
   name = :name
 '''
-    rows = await database.fetch_all(query=query, values={"name": place})
+    rows = await database.fetch_all(query=query, values={"name": q})
     # For our pursposes we want to save the results in a special json format with two keys: `label` and `value`.
     # That's because jquery `autocomplete` will work if follow this format convention for our JSON output.
     
@@ -65,18 +68,23 @@ WHERE
     return results
 ```
 
-The way this query is written it is making an EXACT string match. For example, if you search for "Honolulu" you will get two  results. Try it on the command line:
+The way this query is written it is making an EXACT string match. For example, if you search for "Honolulu" you will get two  results. Try it on the command line. Note that with your `uvicorn main:app --reload` running in your first terminal window you may just want to create another terminal window by splitting the terminal screen or clicking the "+" icon in the top right of the terminal.
 
 ```
 curl localhost:8000/search?q=Honolulu
 ```
-It might be hard to read but there should be two records. This would not return "East Honolulu", however. It's also case sensitive so this will return nothing:
+It might be hard to read but there should be two records. To make it easier to read, pipe it through `jq`:
+
 ```
-curl localhost:8000/search?q=honolulu
+curl localhost:8000/search?q=Honolulu | jq '.'
+```
+
+This would not return "East Honolulu", however. It's also case sensitive so this will return nothing:
+```
+curl localhost:8000/search?q=honolulu | jq '.'
 ```
 What we really want is to be able to return partial matches. For example:
 - "hon" -> All the Honolulus, including East Honolulu PLUS anything with "hon" in its name, such as "Piʻihonua".
-
 
 If you need a hint for how to add the `%` wildcard to your search term:
 ```
@@ -156,6 +164,7 @@ Next, to setup autocomplate, add this autocomplete script to the `<head>` sectio
                         return {
                             label : item.label,
                             value : item.value
+                            // Note that if we add additional items to the http response we will need to update here
                         };
                       }));
                     }
@@ -180,8 +189,7 @@ Once your autocomplete `/search` is working, take a screenshot of the output of 
 ### Make the autocomplete clickable
 The HTML page with javascript is located at [static/index.html](static/index.html). We want the autocomplete results to be clickable so that when you click on a result it adds a Leaflet marker on the map and zooms the map to it. Look for the comment `setup places search autocomplete` to find where we are going to setup the autocomplete.
 
-The way we are going to do this is to bind an action, `select` to a function we will write that will add the marker. The documentation for this action is here in the [JQuery docs](https://api.jqueryui.com/autocomplete/#event-select). Look over the following function and try to make sense of it. 
-
+The way we are going to do this is to bind an action, `select` to a function we will write that will add the marker. The documentation for this action is here in the [JQuery docs](https://api.jqueryui.com/autocomplete/#event-select). Look over the following function and try to make sense of it. Note that it will not work until you add the variable initialization that is also described below.
 
 ```
   select: function( event, ui ) {
@@ -207,7 +215,15 @@ The way we are going to do this is to bind an action, `select` to a function we 
         return false;
   }
 ```
-Note that the above requires a few things ro work:
+
+ It relies on a `marker` variable which should be declared at the top of the `<script>` in a section labeled "Variable initialization" like so:
+
+```
+          // current marker
+          var marker = null;
+```
+
+Note that the select function requires a few things ro work:
 - the `/search` result must return additional information beside the `label` and `name`. 
   - Specifically, it needs to return two arguments named `lon` and `lat`. You will need to modify the SQL to return two additional columns. You will want to look into the PostGIS functions [`ST_X()`](https://postgis.net/docs/ST_X.html) and [`ST_Y()`](https://postgis.net/docs/ST_Y.html). 
 - Note also that the default projection for your OSM data is `EPSG:3857` which is _not_ lat/long so you will need to use the [`ST_Transform()`](https://postgis.net/docs/ST_Transform.html) function as well. The SRID you want is `4326`.
@@ -258,7 +274,11 @@ The PostGIS is based on [this k-nearest neighbors example](https://postgis.net/w
 async def find_coffee(lon: str, lat: str):
     query = '''
 SELECT 
-  a.geometry <-> ST_Transform(ST_Point({},{},4326),3857) AS dist, 
+  a.geometry <-> ST_Transform(
+    ST_SetSRID(
+      ST_Point({},{}),
+      4326),
+    3857) AS dist, 
   osm_id, 
   name,
   ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,
@@ -278,19 +298,27 @@ LIMIT 5;
     results = []
     for row in rows:
         results.append({'dist': row[0], 'osm_id': row[1], 'name': row[2], 'lat': row[3], 'lon': row[4]})
-    # template = jinja2.Template("""{{ matches | tojson(indent=2) }}""")
-    # return template.render(matches=results)
     return results
 ```
-This query has two interesting geo parts. There's the `a.geometry <-> ST_Transform(ST_Point({},{},4326),3857) AS dist` and the `ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,` and `... AS lon` parts.
+This query has two interesting geo parts. There's the `a.geometry <-> ST_Transform(ST_SetSRID(ST_Point({},{}),4326),3857) AS dist` and the `ST_Y(ST_Transform(ST_Centroid(a.geometry), 4326)) AS lat,` and `... AS lon` parts.
 
 `<->` gives a distance so we are calculating the distance from the amenity (`a.geometry`) to much more complicated `ST_Transform(ST_Point({},{},4326),3857)`. This is a nest of functions so let's deconstruct from the center out:
 ```
-ST_Point({},{},4326)
+ST_Point({},{})
 ```
-[`ST_Point`](https://postgis.net/docs/ST_Point.html) simple creates a PostGIS Point geometry from an `x` and `y` value. `4326` is the SRID this geometry will be given. 
+[`ST_Point`](https://postgis.net/docs/ST_Point.html) simple creates a PostGIS Point geometry from an `x` and `y` value. 
 ```
-ST_Transform(ST_Point({},{},4326),3857)
+ST_SetSRID(
+  ST_Point({},{}),
+  4326)
+```
+`4326` is the SRID this geometry will be given. ST_SetSRID sets the SRID on a geometry. 
+```
+ST_Transform(
+  ST_SetSRID(
+    ST_Point({},{}),
+    4326),
+  3857)
 ```
 In order to compare the `amenties.geometry` field (which is in EPSG:3857, we need to reproject one of them with [ST_Transform](https://postgis.net/docs/ST_Transform.html) PostGIS function. Since distance is better at the equator as a geometry in EPSG:3857, we will project the point to 3857 )
 
@@ -373,10 +401,9 @@ In `index.html` there is a stubbed function for `find_coffee()`. Update its cont
 ```
   // search for coffee shops near a point
   function findCoffee(lon, lat) {
-    $.ajax({url: "/find_coffee?lon="+lon+"&lat="+lat, success: function(result){
+    $.ajax({url: "/find_coffee?lon="+lon+"&lat="+lat, success: function(jsonResult){
       clearResults();
       let i = 0;
-      jsonResult = JSON.parse(result)
       while (i < jsonResult.length) {
         marker = L.marker([jsonResult[i]["lat"], jsonResult[i]["lon"]], {title: jsonResult[i]["name"]}).addTo(map);
         coffeeMarkers.push(marker);
@@ -416,7 +443,7 @@ like this:
 ```
   marker = L.marker([lat, lon],{title: ui.item.label, draggable: true, icon: redIcon}).addTo(map);
 ```
-Addtionally, we want the `findCoffee()` function to be called with different coordinates if we move the marker so we can update that button on the `dragend` event for that marker:
+Addtionally, we want the `findCoffee()` function to be called with different coordinates if we move the marker so we can update that button on the `dragend` event for that marker. Add this after the line above:
 ```
   marker.on('dragend', function(event){
     var marker = event.target;
