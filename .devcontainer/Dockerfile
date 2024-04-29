@@ -43,7 +43,7 @@ RUN mkdir /opt/imposm \
 
 RUN git clone https://github.com/geosolutions-it/osm-styles.git
 
-RUN curl -L https://www.dropbox.com/s/bqzxzkpmpybeytr/osm-lowres.gpkg?dl=1 -o osm-styles/data/osm-lowres.gpkg
+RUN pip install -r requirements.txt
 
 VOLUME [ "/var/lib/docker" ]
 
