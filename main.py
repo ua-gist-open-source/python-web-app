@@ -17,9 +17,9 @@ engine = create_engine(DATABASE_URL)  # Access the DB Engine
 async def read_index():
     return FileResponse('static/index.html')
 
-// Add "search" here
+# Add "search" here
 
-// Add "find_coffee" here
+# Add "find_coffee" here
 
 @app.on_event("startup")
 async def startup():
