@@ -34,7 +34,7 @@ RUN apt update \
     
 RUN pip3 install --upgrade pip
 RUN pip3 install wheel 
-RUN pip3 install gunicorn flask psycopg2-binary fastapi uvicorn starlette 
+RUN pip3 install gunicorn flask psycopg2-binary fastapi uvicorn starlette fastapi uvicorn sqlalchemy databases psycopg2-binary asyncpg
 
 RUN mkdir /opt/imposm \
     && curl -L -O https://github.com/omniscale/imposm3/releases/download/v0.11.1/imposm-0.11.1-linux-x86-64.tar.gz -o imposm-0.11.1-linux-x86-64.tar.gz  \
