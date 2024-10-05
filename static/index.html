@@ -1,0 +1,77 @@
+<html>
+    <head>
+        <title>Place Finder</title>
+        <base target="_top">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        
+        <title>OSM PLace Searcher</title>
+
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin=""/>
+        <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>      
+
+        // Add JQuery CSS and javascript here
+        
+        <script>          
+          // Variable initialization
+          
+          // Place search autocomplete
+
+          // find coffee closest to a given place
+          function findCoffee(lon, lat) {
+            // todo: complete this
+          }
+
+          function clearResults() { 
+            // todo: complete this
+          }
+        </script>
+
+    </head>
+    <body>
+
+        <div id="map" style="width: 600px; height: 400px;"></div>
+        <div class="ui-widget" >
+            <label for="place">Enter Place Name: </label>
+            <input id="place">
+        </div>
+        <div id="search"></div>
+        <div id="result"></div>
+        <div id="hide_results" style="display:none;"><input type="button" value="clear results" onclick="clearResults()"></div>
+
+        <script>
+            // Create a map
+            var map = new L.Map('map', { center: new L.LatLng( 19.5429, -155.6659), zoom: 8, attributionControl:true, zoomControl:false});  
+            var osmUrl='http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            var osmAttrib='Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors';
+            var osm = new L.TileLayer(osmUrl, {minZoom: 3, maxZoom: 18, attribution: osmAttrib});
+            map.addLayer(osm);
+
+            // print the lat/long on the map as the mouse moves
+            let Position = L.Control.extend({ 
+            _container: null,
+            options: {
+              position: 'bottomleft'
+            },
+
+            onAdd: function (map) {
+              var latlng = L.DomUtil.create('div', 'mouseposition');
+              this._latlng = latlng;
+              return latlng;
+            },
+
+            updateHTML: function(lat, lng) {
+              var latlng = lat + " " + lng;
+              this._latlng.innerHTML = "LatLng: " + latlng;
+            }
+          });
+          this.position = new Position();
+          this.map.addControl(this.position);
+          this.map.addEventListener('mousemove', (event) => {
+            let lat = Math.round(event.latlng.lat * 100000) / 100000;
+            let lng = Math.round(event.latlng.lng * 100000) / 100000;
+            this.position.updateHTML(lat, lng);
+          });
+        </script>
+    </body>
+</html>
